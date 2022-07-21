@@ -18,16 +18,32 @@ local submarine = {}
     submarine.ox = 0
     submarine.oy = 0
     submarine.speed = 60
+local lst_missile = {}
+local img_missile = nil
+local speed_missile = 0
+local lst_plane = {}
+local img_plane = nil
+local speed_plane = nil 
+
+function InitJeu()
+    submarine.x = largeur_ecran/2
+    submarine.y = hauteur_ecran/2
+    submarine.ox = submarine.img:getWidth()/2
+    submarine.oy = submarine.img:getHeight()/2
+    speed_missile = 200
+    speed_plane = 200
+    lst_missile = {}
+    lst_plane = {}
+    CreerRaid()
+end
 
 function love.load()
-  largeur_ecran = love.graphics.getWidth()
-  hauteur_ecran = love.graphics.getHeight()
-  background = love.graphics.newImage("assets/images/fond.jpg")
-  submarine.img = love.graphics.newImage("assets/images/sous-marin-heros.png")
-  submarine.x = largeur_ecran/2
-  submarine.y = hauteur_ecran/2
-  submarine.ox = submarine.img:getWidth()/2
-  submarine.oy = submarine.img:getHeight()/2
+    largeur_ecran = love.graphics.getWidth()
+    hauteur_ecran = love.graphics.getHeight()
+    background = love.graphics.newImage("assets/images/fond.jpg")
+    submarine.img = love.graphics.newImage("assets/images/sous-marin-heros.png")
+    img_missile = love.graphics.newImage("assets/images/missile.png")
+    img_plane = love.graphics.newImage("assets/images/avion.png")
 end
 
 function love.update(dt)
@@ -63,6 +79,39 @@ end
 -- =============================================================================
 -- GAMEPLAY
 -- =============================================================================
+function CreerMissile()
+    local missile = {}
+            missile.x = submarine.x - (submarine.ox/2)
+            missile.y = submarine.y - (submarine.oy*2)
+    table.insert(lst_missile, missile)
+end
+
+function CreerPlane(pX, pY, pSens)
+    local plane = {}
+        plane.x = pX
+        plane.y = pY
+        plane.sx = pSens
+        plane.sy = 1
+        plane.sens = pSens
+    table.insert(lst_plane, plane)
+end
+
+function CreerRaid()
+    local sens = 1
+    for n=1, 6 do
+        if sens == 1 then 
+            CreerPlane(0- (n* img_plane:getWidth()/2), n*img_plane:getHeight(), sens)
+        else
+            CreerPlane(largeur_ecran + (n* img_plane:getWidth()/2), n*img_plane:getHeight(), sens)
+        end
+        if sens == 1 then 
+            sens = -1
+        else
+            sens = 1
+        end
+    end
+end
+
 function updateGameplay(dt)
     if love.keyboard.isDown("up") and submarine.y >= hauteur_ecran/2 then
         submarine.y = submarine.y - (submarine.speed*dt)
@@ -76,13 +125,48 @@ function updateGameplay(dt)
     if love.keyboard.isDown("down") and submarine.y <= hauteur_ecran-submarine.oy then
         submarine.y = submarine.y + (submarine.speed*dt)
     end
+
+    for i = #lst_missile, 1, -1 do 
+        local m = lst_missile[i]
+        m.y = m.y - (speed_missile*dt)
+        if (m.y+img_missile:getHeight()) <= 0 then 
+            table.remove(lst_missile, i)
+        end
+    end
+
+    for i = #lst_plane, 1, -1 do
+        local p = lst_plane[i]
+
+        p.x = p.x + ((speed_plane*dt)*p.sens) 
+
+        if p.sens == 1 then 
+            if p.x > largeur_ecran then 
+                p.x = 0 - img_plane:getWidth()
+                p.sx = 1
+            end
+        else
+            if p.x < 0-img_plane:getWidth() then 
+                p.x = largeur_ecran
+                p.sx = -1
+            end
+        end
+        
+        
+    end
 end
 function drawGameplay()
     love.graphics.print("drawGameplay")
     love.graphics.draw(background, 0, 0)
     love.graphics.draw(submarine.img, submarine.x, submarine.y, 0, 1, 1, submarine.ox, submarine.oy)
-end
 
+    for k,m in ipairs(lst_missile) do
+        love.graphics.draw(img_missile, m.x, m.y)
+    end
+
+    for k,m in ipairs(lst_plane) do
+        love.graphics.draw(img_plane, m.x, m.y, 0, m.sx, m.sy)
+    end
+end
 -- =============================================================================
 -- GAMEOVER
 -- =============================================================================
@@ -96,9 +180,13 @@ end
 
 
 function love.keypressed(key)
-    if key == "return" then 
+    if key == "return" and mode == "MENU" then 
         mode = "GAMEPLAY"
+        InitJeu()
+    elseif key == "a" and mode == "GAMEPLAY" then 
+        CreerMissile()
     end
+
     if key == "escape" then 
         mode = love.event.quit()
     end
