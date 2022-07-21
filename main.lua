@@ -23,7 +23,10 @@ local img_missile = nil
 local speed_missile = 0
 local lst_plane = {}
 local img_plane = nil
-local speed_plane = nil 
+local speed_plane = nil
+
+local lst_explosion = {}
+local img_explosion = nil
 
 function InitJeu()
     submarine.x = largeur_ecran/2
@@ -34,6 +37,7 @@ function InitJeu()
     speed_plane = 200
     lst_missile = {}
     lst_plane = {}
+    lst_explosion = {}
     CreerRaid()
 end
 
@@ -44,6 +48,8 @@ function love.load()
     submarine.img = love.graphics.newImage("assets/images/sous-marin-heros.png")
     img_missile = love.graphics.newImage("assets/images/missile.png")
     img_plane = love.graphics.newImage("assets/images/avion.png")
+    img_explosion = love.graphics.newImage("assets/images/explosion_avion.png")
+
 end
 
 function love.update(dt)
@@ -112,6 +118,21 @@ function CreerRaid()
     end
 end
 
+function CheckCollision(x1,y1,w1,h1, x2,y2,w2,h2)
+    return x1 < x2+w2 and
+           x2 < x1+w1 and
+           y1 < y2+h2 and
+           y2 < y1+h1
+end
+
+function Explosion(pX, pY)
+    local explosion = {}
+        explosion.x = pX
+        explosion.y = pY
+        explosion.vie = 0.5
+    table.insert(lst_explosion, explosion)
+end
+
 function updateGameplay(dt)
     if love.keyboard.isDown("up") and submarine.y >= hauteur_ecran/2 then
         submarine.y = submarine.y - (submarine.speed*dt)
@@ -136,24 +157,35 @@ function updateGameplay(dt)
 
     for i = #lst_plane, 1, -1 do
         local p = lst_plane[i]
+        local bSupprime = false
 
-        p.x = p.x + ((speed_plane*dt)*p.sens) 
-
-        if p.sens == 1 then 
-            if p.x > largeur_ecran then 
-                p.x = 0 - img_plane:getWidth()
-                p.sx = 1
-            end
-        else
-            if p.x < 0-img_plane:getWidth() then 
-                p.x = largeur_ecran
-                p.sx = -1
+        for n = #lst_missile, 1, -1 do 
+            local m = lst_missile[n]
+            if CheckCollision(p.x, p.y, img_plane:getWidth(), img_plane:getHeight(),
+                            m.x, m.y, img_missile:getWidth(), img_missile:getHeight()) then 
+                table.remove(lst_plane, i) 
+                table.remove(lst_missile, n) 
+                bSupprime = true
             end
         end
-        
-        
+        if bSupprime == false then 
+            p.x = p.x + ((speed_plane*dt)*p.sens)
+             
+            if p.sens == 1 then 
+                if p.x > largeur_ecran then 
+                    p.x = 0 - img_plane:getWidth()
+                    p.sx = 1
+                end
+            else
+                if p.x < 0-img_plane:getWidth() then 
+                    p.x = largeur_ecran
+                    p.sx = -1
+                end
+            end
+        end
     end
 end
+
 function drawGameplay()
     love.graphics.print("drawGameplay")
     love.graphics.draw(background, 0, 0)
@@ -165,6 +197,10 @@ function drawGameplay()
 
     for k,m in ipairs(lst_plane) do
         love.graphics.draw(img_plane, m.x, m.y, 0, m.sx, m.sy)
+    end
+
+    for k,m in ipairs(lst_explosion) do
+        love.graphics.draw(img_explosion, m.x, m.y)
     end
 end
 -- =============================================================================
