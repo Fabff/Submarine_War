@@ -18,6 +18,8 @@ local submarine = {}
     submarine.ox = 0
     submarine.oy = 0
     submarine.speed = 60
+    submarine.vies = 0
+    submarine.boom = false
 
 local boss = {}
 local img_boss = nil
@@ -35,20 +37,31 @@ local lst_explosion = {}
 local img_explosion = nil
 
 local phase = nil 
+local level = nil
 
-function InitJeu()
-    submarine.x = largeur_ecran/2
-    submarine.y = hauteur_ecran/2
-    submarine.ox = submarine.img:getWidth()/2
-    submarine.oy = submarine.img:getHeight()/2
-    speed_missile = 200
-    speed_plane = 200
-    speed_boss = 600
+local lst_missile_tc = {}
+local img_missile_tc = nil
+local speed_missile_tc = nil
+
+function StartLevel()
     lst_missile = {}
     lst_plane = {}
     lst_explosion = {}
-    phase = "RAIDS"
+    lst_missile_tc = {}
+    submarine.x = largeur_ecran/2
+    submarine.y = hauteur_ecran/2
     CreerRaid()
+    phase = "RAIDS"
+end
+
+function InitJeu()
+    submarine.vies = 5
+    speed_missile = 200
+    speed_plane = 200
+    speed_boss = 600
+    speed_missile_tc = 150
+    level = 1
+    StartLevel()
 end
 
 function love.load()
@@ -56,10 +69,13 @@ function love.load()
     hauteur_ecran = love.graphics.getHeight()
     background = love.graphics.newImage("assets/images/fond.jpg")
     submarine.img = love.graphics.newImage("assets/images/sous-marin-heros.png")
+    submarine.ox = submarine.img:getWidth()/2
+    submarine.oy = submarine.img:getHeight()/2
     img_missile = love.graphics.newImage("assets/images/missile.png")
     img_plane = love.graphics.newImage("assets/images/avion.png")
     img_explosion = love.graphics.newImage("assets/images/explosion_avion.png")
     img_boss = love.graphics.newImage("assets/images/boss_droite.png")
+    img_missile_tc = love.graphics.newImage("assets/images/bombe_bas.png")
 end
 
 function love.update(dt)
@@ -148,6 +164,18 @@ function Boss()
     boss.y = hauteur_ecran/4
     boss.sens = -1
     boss.timer = love.math.random(1,4)
+    boss.timerTC = love.math.random(50, 100) / 100
+end
+
+function  CreerMissileTC()
+    local missile = {}
+    print("missile lancé")
+        missile.x = boss.x + img_boss:getWidth()/2
+        missile.y = boss.y + img_boss:getHeight()/2
+        missile.vy = speed_missile_tc
+        missile.vx = 0
+        missile.sens = 2
+    table.insert(lst_missile_tc, missile)
 end
 
 function  update_plane(dt)
@@ -204,6 +232,14 @@ function update_boss(dt)
 
     local change_direction = false
     if bSupprime == false then 
+        boss.timerTC = boss.timerTC - dt
+        
+        if boss.timerTC <= 0 then 
+            CreerMissileTC()
+            boss.timerTC = love.math.random(1,2)
+        end
+
+
         boss.x = boss.x + ((speed_boss * dt) * boss.sens)
         boss.timer = boss.timer - dt      
         
@@ -217,12 +253,10 @@ function update_boss(dt)
             end
         end
         if boss.timer <= 0 then 
-            print("passe")
             change_direction = true
         end
 
         if change_direction then
-            print(boss.x)
             boss.sens = boss.sens * -1
             boss.timer = love.math.random(2,10)/10
         end
@@ -259,6 +293,12 @@ function updateGameplay(dt)
         end
     end
 
+    for n = #lst_missile_tc, 1, -1 do 
+        local TC = lst_missile_tc[n]
+        TC.y = TC.y + (TC.vy * dt)
+        TC.x = TC.x + (TC.vx * dt)
+    end
+
     if phase == "RAIDS" then 
         update_plane(dt)
     elseif phase == "BOSS" then
@@ -288,8 +328,6 @@ function drawGameplay()
         love.graphics.draw(img_missile, m.x, m.y)
     end
 
-    
-
     for k,m in ipairs(lst_explosion) do
         love.graphics.draw(img_explosion, m.x, m.y)
     end
@@ -298,6 +336,10 @@ function drawGameplay()
         draw_raid()
     elseif phase == "BOSS" then 
         draw_boss()
+    end
+
+    for k,m in ipairs(lst_missile_tc) do
+        love.graphics.draw(img_missile_tc, m.x, m.y)
     end
 end
 -- =============================================================================
