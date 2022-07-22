@@ -107,8 +107,8 @@ function CreerRaid()
     for n=1, 6 do
         if sens == 1 then 
             CreerPlane(0- (n* img_plane:getWidth()/2), n*img_plane:getHeight(), sens)
-        else
-            CreerPlane(largeur_ecran + (n* img_plane:getWidth()/2), n*img_plane:getHeight(), sens)
+        elseif sens == -1 then
+            CreerPlane(largeur_ecran + (n * img_plane:getWidth()/2), n*img_plane:getHeight(), sens)
         end
         if sens == 1 then 
             sens = -1
@@ -163,6 +163,7 @@ function updateGameplay(dt)
             local m = lst_missile[n]
             if CheckCollision(p.x, p.y, img_plane:getWidth(), img_plane:getHeight(),
                             m.x, m.y, img_missile:getWidth(), img_missile:getHeight()) then 
+                Explosion(p.x, p.y)
                 table.remove(lst_plane, i) 
                 table.remove(lst_missile, n) 
                 bSupprime = true
@@ -184,6 +185,13 @@ function updateGameplay(dt)
             end
         end
     end
+    for n=#lst_explosion, 1, -1 do
+        local explosion = lst_explosion[n]
+        explosion.vie = explosion.vie - dt
+        if explosion.vie <= 0 then 
+            table.remove(lst_explosion, n)
+        end
+    end
 end
 
 function drawGameplay()
@@ -196,7 +204,11 @@ function drawGameplay()
     end
 
     for k,m in ipairs(lst_plane) do
-        love.graphics.draw(img_plane, m.x, m.y, 0, m.sx, m.sy)
+        if m.sens == 1 then
+            love.graphics.draw(img_plane, m.x, m.y, 0, m.sx, m.sy)
+        else
+            love.graphics.draw(img_plane, m.x+img_plane:getWidth(), m.y, 0, m.sx, m.sy)
+        end
     end
 
     for k,m in ipairs(lst_explosion) do
