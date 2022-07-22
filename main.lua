@@ -18,15 +18,23 @@ local submarine = {}
     submarine.ox = 0
     submarine.oy = 0
     submarine.speed = 60
+
+local boss = {}
+local img_boss = nil
+local speed_boss = nil
+
 local lst_missile = {}
 local img_missile = nil
 local speed_missile = 0
+
 local lst_plane = {}
 local img_plane = nil
 local speed_plane = nil
 
 local lst_explosion = {}
 local img_explosion = nil
+
+local phase = nil 
 
 function InitJeu()
     submarine.x = largeur_ecran/2
@@ -35,9 +43,11 @@ function InitJeu()
     submarine.oy = submarine.img:getHeight()/2
     speed_missile = 200
     speed_plane = 200
+    speed_boss = 600
     lst_missile = {}
     lst_plane = {}
     lst_explosion = {}
+    phase = "RAIDS"
     CreerRaid()
 end
 
@@ -49,7 +59,7 @@ function love.load()
     img_missile = love.graphics.newImage("assets/images/missile.png")
     img_plane = love.graphics.newImage("assets/images/avion.png")
     img_explosion = love.graphics.newImage("assets/images/explosion_avion.png")
-
+    img_boss = love.graphics.newImage("assets/images/boss_droite.png")
 end
 
 function love.update(dt)
@@ -133,6 +143,92 @@ function Explosion(pX, pY)
     table.insert(lst_explosion, explosion)
 end
 
+function Boss()
+    boss.x = largeur_ecran-img_boss:getWidth()
+    boss.y = hauteur_ecran/4
+    boss.sens = -1
+    boss.timer = love.math.random(1,4)
+end
+
+function  update_plane(dt)
+    for i = #lst_plane, 1, -1 do
+        local p = lst_plane[i]
+        local bSupprime = false
+
+        for n = #lst_missile, 1, -1 do 
+            local m = lst_missile[n]
+            if CheckCollision(p.x, p.y, img_plane:getWidth(), img_plane:getHeight(),
+                            m.x, m.y, img_missile:getWidth(), img_missile:getHeight()) then 
+                Explosion(p.x, p.y)
+                table.remove(lst_plane, i) 
+                table.remove(lst_missile, n) 
+                bSupprime = true
+            end
+            if #lst_plane == 0 then 
+                phase = "BOSS"
+                Boss()
+            end
+        end
+        if bSupprime == false then 
+            p.x = p.x + ((speed_plane*dt)*p.sens)
+             
+            if p.sens == 1 then 
+                if p.x > largeur_ecran then 
+                    p.x = 0 - img_plane:getWidth()
+                    p.sx = 1
+                end
+            else
+                if p.x < 0-img_plane:getWidth() then 
+                    p.x = largeur_ecran
+                    p.sx = -1
+                end
+            end
+        end
+    end
+end
+
+function update_boss(dt)
+    local bSupprime = false
+
+    for n = #lst_missile, 1, -1 do 
+        local m = lst_missile[n]
+        if CheckCollision(m.x, m.y, img_missile:getWidth(), img_missile:getHeight(),
+        boss.x, boss.y, img_boss:getWidth(), img_boss:getHeight()) then 
+            table.remove(lst_missile, n) 
+            Explosion(boss.x, boss.y)
+            phase = "RAIDS"
+            CreerRaid()
+            bSupprime = true
+        end
+    end
+
+    local change_direction = false
+    if bSupprime == false then 
+        boss.x = boss.x + ((speed_boss * dt) * boss.sens)
+        boss.timer = boss.timer - dt      
+        
+        if boss.sens == -1 then 
+            if boss.x <= 0 then 
+                change_direction = true
+            end
+        elseif boss.sens == 1 then
+            if boss.x - img_boss:getWidth() > largeur_ecran then
+                change_direction = true
+            end
+        end
+        if boss.timer <= 0 then 
+            print("passe")
+            change_direction = true
+        end
+
+        if change_direction then
+            print(boss.x)
+            boss.sens = boss.sens * -1
+            boss.timer = love.math.random(2,10)/10
+        end
+    end
+end
+
 function updateGameplay(dt)
     if love.keyboard.isDown("up") and submarine.y >= hauteur_ecran/2 then
         submarine.y = submarine.y - (submarine.speed*dt)
@@ -155,36 +251,6 @@ function updateGameplay(dt)
         end
     end
 
-    for i = #lst_plane, 1, -1 do
-        local p = lst_plane[i]
-        local bSupprime = false
-
-        for n = #lst_missile, 1, -1 do 
-            local m = lst_missile[n]
-            if CheckCollision(p.x, p.y, img_plane:getWidth(), img_plane:getHeight(),
-                            m.x, m.y, img_missile:getWidth(), img_missile:getHeight()) then 
-                Explosion(p.x, p.y)
-                table.remove(lst_plane, i) 
-                table.remove(lst_missile, n) 
-                bSupprime = true
-            end
-        end
-        if bSupprime == false then 
-            p.x = p.x + ((speed_plane*dt)*p.sens)
-             
-            if p.sens == 1 then 
-                if p.x > largeur_ecran then 
-                    p.x = 0 - img_plane:getWidth()
-                    p.sx = 1
-                end
-            else
-                if p.x < 0-img_plane:getWidth() then 
-                    p.x = largeur_ecran
-                    p.sx = -1
-                end
-            end
-        end
-    end
     for n=#lst_explosion, 1, -1 do
         local explosion = lst_explosion[n]
         explosion.vie = explosion.vie - dt
@@ -192,6 +258,25 @@ function updateGameplay(dt)
             table.remove(lst_explosion, n)
         end
     end
+
+    if phase == "RAIDS" then 
+        update_plane(dt)
+    elseif phase == "BOSS" then
+        update_boss(dt)
+    end
+end
+
+function draw_raid()
+    for k,m in ipairs(lst_plane) do
+        if m.sens == 1 then
+            love.graphics.draw(img_plane, m.x, m.y, 0, m.sx, m.sy)
+        else
+            love.graphics.draw(img_plane, m.x+img_plane:getWidth(), m.y, 0, m.sx, m.sy)
+        end
+    end
+end
+function draw_boss()
+    love.graphics.draw(img_boss, boss.x, boss.y, 0, boss.sens, 1)
 end
 
 function drawGameplay()
@@ -203,16 +288,16 @@ function drawGameplay()
         love.graphics.draw(img_missile, m.x, m.y)
     end
 
-    for k,m in ipairs(lst_plane) do
-        if m.sens == 1 then
-            love.graphics.draw(img_plane, m.x, m.y, 0, m.sx, m.sy)
-        else
-            love.graphics.draw(img_plane, m.x+img_plane:getWidth(), m.y, 0, m.sx, m.sy)
-        end
-    end
+    
 
     for k,m in ipairs(lst_explosion) do
         love.graphics.draw(img_explosion, m.x, m.y)
+    end
+
+    if phase == "RAIDS" then 
+        draw_raid()
+    elseif phase == "BOSS" then 
+        draw_boss()
     end
 end
 -- =============================================================================
