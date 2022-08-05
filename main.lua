@@ -49,6 +49,7 @@ function StartLevel()
     lst_plane = {}
     lst_explosion = {}
     lst_missile_tc = {}
+    submarine.boom = false
     submarine.x = largeur_ecran/2
     submarine.y = hauteur_ecran/2
     CreerRaid()
@@ -225,11 +226,11 @@ function update_boss(dt)
         local m = lst_missile[n]
         if CheckCollision(m.x, m.y, img_missile:getWidth(), img_missile:getHeight(),
         boss.x, boss.y, img_boss:getWidth(), img_boss:getHeight()) then 
-            table.remove(lst_missile, n) 
             Explosion(boss.x, boss.y)
-            phase = "RAIDS"
-            CreerRaid()
             bSupprime = true
+            StartLevel()
+            table.remove(lst_missile, n) 
+            break
         end
     end
 
@@ -266,7 +267,7 @@ function update_boss(dt)
     end
 end
 
-function updateGameplay(dt)
+function move_submarine(dt)
     if love.keyboard.isDown("up") and submarine.y >= hauteur_ecran/2 then
         submarine.y = submarine.y - (submarine.speed*dt)
     end
@@ -280,6 +281,13 @@ function updateGameplay(dt)
         submarine.y = submarine.y + (submarine.speed*dt)
     end
 
+end
+
+function updateGameplay(dt)
+    if submarine.boom == false then 
+        move_submarine(dt)
+    end
+   
     for i = #lst_missile, 1, -1 do 
         local m = lst_missile[i]
         m.y = m.y - (speed_missile*dt)
@@ -298,6 +306,7 @@ function updateGameplay(dt)
 
     for n = #lst_missile_tc, 1, -1 do 
         local TC = lst_missile_tc[n]
+        local bSupprime = false
         TC.y = TC.y + (TC.vy * dt)
         TC.x = TC.x + (TC.vx * dt)
         if TC.vy > 0 then
@@ -314,10 +323,31 @@ function updateGameplay(dt)
         end
         if TC.x < 0 then
             table.remove(lst_missile_tc, n)
+            bSupprime = true
         elseif TC.x > largeur_ecran then 
             table.remove(lst_missile_tc, n)
+            bSupprime = true
+        else
+            for i = #lst_missile, 1, -1 do 
+                local m = lst_missile[i]
+                if CheckCollision(TC.x, TC.y, img_missile_tc:getWidth(), img_missile_tc:getHeight(),
+                            m.x, m.y, img_missile:getWidth(), img_missile:getHeight()) then 
+                    Explosion(TC.x, TC.y)
+                    table.remove(lst_missile_tc, n)
+                    bSupprime = true
+                    table.remove(lst_missile, i)
+                end
+            end
         end
-
+        --si bSupprime == false => test collision avec submarin
+        if bSupprime==false and CheckCollision(TC.x, TC.y, img_missile_tc:getWidth(), img_missile_tc:getHeight(),
+            submarine.x-submarine.ox, submarine.y-submarine.oy, submarine.img:getWidth(), submarine.img:getHeight()) then 
+            table.remove(lst_missile_tc, n)
+            submarine.boom = true
+            for e=1, 50 do
+                Explosion((submarine.x-submarine.ox) + math.random(-60, 80), (submarine.y-submarine.oy) + math.random(-30,30) )
+            end
+        end
     end
 
     if phase == "RAIDS" then 
@@ -325,6 +355,16 @@ function updateGameplay(dt)
     elseif phase == "BOSS" then
         update_boss(dt)
     end
+
+    if submarine.boom and #lst_explosion==0 then
+        submarine.vies = submarine.vies - 1
+        if submarine.vies > 0 then
+            StartLevel()
+        else
+            mode = "MENU"
+        end
+    end
+
 end
 
 function draw_raid()
@@ -366,7 +406,7 @@ function drawGameplay()
             love.graphics.draw(img_missile_tcx, m.x, m.y, 0, m.sx, m.sy)
         end  
     end
-    --love.graphics.print(#lst_missile_tc, 0, 0)
+    love.graphics.print(#lst_plane, 0, 0)
 end
 -- =============================================================================
 -- GAMEOVER
