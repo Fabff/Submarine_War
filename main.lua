@@ -41,6 +41,7 @@ local level = nil
 
 local lst_missile_tc = {}
 local img_missile_tc = nil
+local img_missile_tcx = nil
 local speed_missile_tc = nil
 
 function StartLevel()
@@ -76,6 +77,7 @@ function love.load()
     img_explosion = love.graphics.newImage("assets/images/explosion_avion.png")
     img_boss = love.graphics.newImage("assets/images/boss_droite.png")
     img_missile_tc = love.graphics.newImage("assets/images/bombe_bas.png")
+    img_missile_tcx = love.graphics.newImage("assets/images/bombe_droite.png")
 end
 
 function love.update(dt)
@@ -169,12 +171,13 @@ end
 
 function  CreerMissileTC()
     local missile = {}
-    print("missile lancé")
         missile.x = boss.x + img_boss:getWidth()/2
         missile.y = boss.y + img_boss:getHeight()/2
         missile.vy = speed_missile_tc
         missile.vx = 0
         missile.sens = 2
+        missile.sx = 1
+        missile.sy = 1
     table.insert(lst_missile_tc, missile)
 end
 
@@ -297,6 +300,24 @@ function updateGameplay(dt)
         local TC = lst_missile_tc[n]
         TC.y = TC.y + (TC.vy * dt)
         TC.x = TC.x + (TC.vx * dt)
+        if TC.vy > 0 then
+            if TC.y > submarine.y then
+                TC.vy = 0
+                if TC.x < submarine.x then
+                    TC.sx = 1
+                    TC.vx = 150
+                elseif TC.x > submarine.x then
+                    TC.sx = -1
+                    TC.vx = -150
+                end
+            end
+        end
+        if TC.x < 0 then
+            table.remove(lst_missile_tc, n)
+        elseif TC.x > largeur_ecran then 
+            table.remove(lst_missile_tc, n)
+        end
+
     end
 
     if phase == "RAIDS" then 
@@ -339,8 +360,13 @@ function drawGameplay()
     end
 
     for k,m in ipairs(lst_missile_tc) do
-        love.graphics.draw(img_missile_tc, m.x, m.y)
+        if m.vy > 0 then 
+            love.graphics.draw(img_missile_tc, m.x, m.y)
+        else
+            love.graphics.draw(img_missile_tcx, m.x, m.y, 0, m.sx, m.sy)
+        end  
     end
+    --love.graphics.print(#lst_missile_tc, 0, 0)
 end
 -- =============================================================================
 -- GAMEOVER
